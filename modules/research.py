@@ -39,44 +39,54 @@ def _terbilang_id(n):
 def _numbers_to_words_id(text):
     return re.sub(r"\b\d+\b", lambda m: _terbilang_id(int(m.group(0))), text)
 
-STOP = set("yang adalah merupakan sebagai untuk dengan secara tersebut pertama kali benar-benar tercatat inilah itulah namun dan atau dari pada ke di sebuah suatu ini itu mereka kita kamu dia kami anda sudah telah akan ada yang itu".split())
-VISUAL_DICT = {
-    'masjid':'mosque','jumat':'Friday congregation','sholat':'prayer','hijrah':'migration caravan','migrasi':'migration',
-    'rasulullah':'Prophet era','nabi muhammad':'Prophet era','nabi':'Prophet','quraisy':'Quraysh tribe',
-    'khutbah':'sermon on minbar','wadi ranuna':'desert valley','madinah':'Medina','mekah':'Mecca','quba':'Quba village',
-    'facebook':'social media office, Mark Zuckerberg era','mark zuckerberg':'young Mark Zuckerberg in Harvard dorm',
-    'harvard':'Harvard dorm room','teknologi':'futuristic technology',' ai ':' AI ','kecerdasan buatan':'artificial intelligence',
-    'sejarah':'historical scene','perang':'battle scene','kerajaan':'ancient kingdom','gunung':'mountain landscape',
-    'laut':'ocean','hutan':'forest','kota':'cityscape','desa':'village','istana':'palace','candi':'ancient temple',
-}
-def _translate_visual(text):
-    low=text.lower()
-    for k,v in sorted(VISUAL_DICT.items(), key=lambda x: -len(x[0])):
-        if k.strip() in low:
-            text=re.sub(re.escape(k), v, text, flags=re.I)
-    return text
-VISUAL_STYLES = [
+STOP = set("yang adalah merupakan sebagai untuk dengan secara tersebut pertama kali benar-benar tercatat inilah itulah namun dan atau dari pada ke di sebuah suatu ini itu mereka kita kamu dia kami anda sudah telah akan ada yang itu dalam tempat menjadi simbol sangatlah salah satu dipercaya oleh dibangun tepatnya".split())
+# visual concepts English only — jangan campur Indonesia
+VISUAL_CONCEPTS = [
+    ("tahukah kamu|mengubah sejarah", "first mosque in Islam dramatic opening, golden sunrise over desert"),
+    ("rabiul awwal|delapan rabiul|622 m|tahun hijriah|hijriyah|23 september", "foundation inscription eighth Rabiul Awwal 622, Quba Mosque first stone historical date"),
+    ("hijrah|perjalanan hijrah", "hijrah caravan arriving at Quba village, travelers with camels, desert road"),
+    ("masjid quba", "Quba Mosque simple stone and palm structure, desert village oasis"),
+    ("wadi ranuna|lembah", "Wadi Ranuna valley, desert settlement between Quba and Medina"),
+    ("batu pertama|peletakan batu|mihrab|baitul maqdis|abu bakar|umar|utsman", "Prophet placing first foundation stone in mihrab facing Al-Aqsa, companions witnessing"),
+    ("at.taubah|takwa|108|ketakwaan|persaudaraan", "Quran Surah At-Taubah mosque built on piety and brotherhood, warm light"),
+    ("pindah|migrasi|seribu dua ratus|kalsum|tanah|5 km", "Quba village land, palm trees and mud houses, 5km from Medina"),
+    ("salat pertama|terbuka|sholat pertama", "first open congregational prayer in rows, peaceful devotion"),
+    ("pahala|umrah|keutamaan|dilipatgandakan", "worshippers praying inside Quba Mosque, spiritual reward atmosphere"),
+]
+GENERIC_STYLES = [
     "cinematic lighting, dramatic atmosphere",
     "wide establishing shot, detailed environment",
     "close-up emotional, shallow depth of field",
     "aerial view, epic scale, vibrant colors",
     "interior warm light, historical detail",
+    "golden hour, desert atmosphere",
+    "wide aerial view, ancient Arabian village",
 ]
+def _translate_visual(text):
+    # legacy helper — keep for fallback generic queries
+    m={"masjid":"mosque","jumat":"Friday congregation","sholat":"prayer","hijrah":"migration","rasulullah":"Prophet era","nabi muhammad":"Prophet era","quraisy":"Quraysh","khutbah":"sermon","madinah":"Medina","mekah":"Mecca","quba":"Quba"}
+    low=text.lower()
+    for k,v in sorted(m.items(),key=lambda x:-len(x[0])):
+        if k.strip() in low:
+            text=re.sub(re.escape(k),v,text,flags=re.I)
+    return text
+VISUAL_DICT = {"masjid":"mosque","jumat":"Friday"}  # keep compat
+VISUAL_STYLES = GENERIC_STYLES
 def _to_visual_prompt(sentence, idx, query=""):
     low=sentence.lower()
+    # cek konsep prioritas — match pertama menang (English only)
+    for pat, concept in VISUAL_CONCEPTS:
+        if re.search(pat, low):
+            style=GENERIC_STYLES[idx % len(GENERIC_STYLES)]
+            return f"cinematic photo, {concept}, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
+    # hook khusus
     if 'tahukah kamu' in low or (idx==0 and 'mengubah sejarah' in low):
-        q_vis=_translate_visual(query)[:60] if query else "mysterious historical moment"
-        return f"cinematic photo, {q_vis}, dramatic opening, epic light, vertical 9:16, ultra detailed, photorealistic"[:180]
-    s=re.sub(r'^(semuanya bermula|saat itu,|menariknya,|hingga akhirnya,|dan inilah[^,]*,|bayangkan,|faktanya,)\s*', '', sentence, flags=re.I)
-    s=re.sub(r'^\[.*?\]\s*', '', s)
-    words=[w for w in re.sub(r'[^\w\s]',' ', s).split() if w.lower() not in STOP]
-    if len(words)<4: words=s.split()
-    core_id=' '.join(words[:14])[:110].strip(' .,;')
-    core=_translate_visual(core_id)
-    if len(core.split())<3: core=_translate_visual(s[:90])
-    style=VISUAL_STYLES[idx % len(VISUAL_STYLES)]
-    prompt=f"cinematic photo, {core}, {style}, ultra detailed, photorealistic, vertical 9:16"
-    return prompt[:180]
+        q_vis=_translate_visual(query)[:50] if query else "historical revelation"
+        return f"cinematic photo, {q_vis}, mysterious discovery, epic light, vertical 9:16, ultra detailed, photorealistic"[:180]
+    # fallback generik: translate query + style, jangan copy narasi Indonesia
+    q_vis=_translate_visual(query)[:60] if query else "historical scene"
+    style=GENERIC_STYLES[idx % len(GENERIC_STYLES)]
+    return f"cinematic photo, {q_vis}, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
 
 class ResearchAgent:
     def __init__(self, config):
