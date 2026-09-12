@@ -42,17 +42,21 @@ def _numbers_to_words_id(text):
 STOP = set("yang adalah merupakan sebagai untuk dengan secara tersebut pertama kali benar-benar tercatat inilah itulah namun dan atau dari pada ke di sebuah suatu ini itu mereka kita kamu dia kami anda sudah telah akan ada yang itu dalam tempat menjadi simbol sangatlah salah satu dipercaya oleh dibangun tepatnya".split())
 # visual concepts English only — jangan campur Indonesia
 VISUAL_CONCEPTS = [
-    ("masjid pertama|dibangun.*nabi|dibangun.*rosul|dibangun oleh", "Quba Mosque first mosque built by Prophet, simple desert mosque historical"),
-    ("berhenti scroll|fakta yang jarang", "first mosque in Islam dramatic opening, golden sunrise over desert"),
-    ("rabiul awwal|delapan rabiul|622 m|tahun hijriah|hijriyah|23 september", "foundation inscription eighth Rabiul Awwal 622, Quba Mosque first stone historical date"),
-    ("hijrah|perjalanan hijrah", "hijrah caravan arriving at Quba village, travelers with camels, desert road"),
-    ("masjid quba", "Quba Mosque simple stone and palm structure, desert village oasis"),
-    ("wadi ranuna|lembah", "Wadi Ranuna valley, desert settlement between Quba and Medina"),
-    ("batu pertama|peletakan batu|mihrab|baitul maqdis|abu bakar|umar|utsman", "Prophet placing first foundation stone in mihrab facing Al-Aqsa, companions witnessing"),
-    ("at.taubah|takwa|108|ketakwaan|persaudaraan", "Quran Surah At-Taubah mosque built on piety and brotherhood, warm light"),
-    ("pindah|migrasi|seribu dua ratus|kalsum|tanah|5 km", "Quba village land, palm trees and mud houses, 5km from Medina"),
-    ("salat pertama|terbuka|sholat pertama", "first open congregational prayer in rows, peaceful devotion"),
-    ("pahala|umrah|keutamaan|dilipatgandakan", "worshippers praying inside Quba Mosque, spiritual reward atmosphere"),
+    ("berhenti scroll|fakta yang jarang|mengubah sejarah", "dramatic opening reveal, golden sunrise epic light"),
+    ("masjid|musholla|surau|quba|tempat ibadah|gereja|kuil|pura", "historic mosque temple interior, stone architecture, warm light"),
+    ("hijrah|migrasi|caravan hijrah|wadi ranuna", "hijrah caravan with camels crossing desert valley, travelers arriving"),
+    ("rabiul awwal|hijriah|622 m|23 september|tahun hijriah", "ancient stone foundation inscription, historical calendar date"),
+    ("batu pertama|peletakan batu|mihrab|baitul maqdis|fondasi", "hands placing first foundation stone, mihrab niche, companions witnessing"),
+    ("at.taubah|takwa|ketakwaan|persaudaraan|taqwa", "Quran open to Surah At-Taubah, light rays symbolizing piety"),
+    ("khalifah|abbasiyah|umayyah|baghdad|baitul hikmah|kesultanan|kerajaan|dynasty", "Abbasid palace Baghdad golden age, ornate throne hall, scholars"),
+    ("harun.*rasyid|khalifah kelima|imam syafi|ulama|scholar debate", "scholar debate in palace library, Abbasid era, scrolls and lamps"),
+    ("putra.*enggan|zuhud|prince ascetic|haji jalan kaki|pilgrimage caravan", "humble prince walking pilgrimage caravan to Mecca, desert road"),
+    ("perang|pertempuran|battle|jihad|penaklukan|futuhat", "historical battle formation, desert battlefield, banners"),
+    ("facebook|mark zuckerberg|harvard|startup|teknologi|AI|internet|media sosial", "modern tech office, servers and screens, startup founders collaborating"),
+    ("ekonomi|perdagangan|pasar|dagang|niaga", "historic marketplace bustling, traders and goods, ancient bazaar"),
+    ("pendidikan|sekolah|universitas|library|baitul hikmah", "ancient library with scrolls, scholars studying, warm lamp light"),
+    ("kota|desa|kampung|pemukiman|negeri", "aerial view ancient village city, mud houses and palm oasis"),
+    ("nabi|rasul|sahabat|wali|prophet era", "Prophet era desert village, companions gathering, peaceful devotion"),
 ]
 GENERIC_STYLES = [
     "cinematic lighting, dramatic atmosphere",
@@ -65,7 +69,7 @@ GENERIC_STYLES = [
 ]
 def _translate_visual(text):
     # legacy helper — keep for fallback generic queries
-    m={"masjid":"mosque","jumat":"Friday congregation","sholat":"prayer","hijrah":"migration","rasulullah":"Prophet era","nabi muhammad":"Prophet era","quraisy":"Quraysh","khutbah":"sermon","madinah":"Medina","mekah":"Mecca","quba":"Quba"}
+    m={"masjid":"mosque","musholla":"small mosque","jumat":"Friday congregation","sholat":"prayer","hijrah":"migration caravan","rasulullah":"Prophet era","nabi muhammad":"Prophet era","nabi":"prophet","quraisy":"Quraysh","khutbah":"sermon","madinah":"Medina","mekah":"Mecca","quba":"Quba","harun ar-rasyid":"Abbasid caliph Baghdad","abbasiyah":"Abbasid dynasty","baghdad":"Baghdad","khalifah":"caliph","facebook":"Facebook startup","sejarah":"history","kisah":"story","kerajaan":"kingdom","perang":"battle","teknologi":"technology","AI":"artificial intelligence","desa":"village","kota":"city","gunung":"mountain","laut":"sea","hutan":"forest","istana":"palace","perdagangan":"trade","pendidikan":"education"}
     low=text.lower()
     for k,v in sorted(m.items(),key=lambda x:-len(x[0])):
         if k.strip() in low:
@@ -80,14 +84,13 @@ def _to_visual_prompt(sentence, idx, query=""):
         if re.search(pat, low):
             style=GENERIC_STYLES[idx % len(GENERIC_STYLES)]
             return f"cinematic photo, {concept}, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
-    # hook khusus
-    if 'tahukah kamu' in low or (idx==0 and 'mengubah sejarah' in low):
-        q_vis=_translate_visual(query)[:50] if query else "historical revelation"
-        return f"cinematic photo, {q_vis}, mysterious discovery, epic light, vertical 9:16, ultra detailed, photorealistic"[:180]
-    # fallback generik: translate query + style, jangan copy narasi Indonesia
-    q_vis=_translate_visual(query)[:60] if query else "historical scene"
+    # query-aware fallback: translate query jika tidak match konsep
+    if query:
+        q_vis=_translate_visual(query)[:60]
+        style=GENERIC_STYLES[idx % len(GENERIC_STYLES)]
+        return f"cinematic photo, {q_vis}, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
     style=GENERIC_STYLES[idx % len(GENERIC_STYLES)]
-    return f"cinematic photo, {q_vis}, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
+    return f"cinematic photo, historical scene, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
 
 class ResearchAgent:
     def __init__(self, config):
