@@ -47,6 +47,9 @@ TRANSITION_TYPE = "fade"
 BGM_PATH = os.getenv("BGM_PATH") or None
 BGM_VOLUME = float(os.getenv("BGM_VOLUME", "0.15"))
 
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
 OUTPUT_FILENAME = "final_output.mp4"
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() in ("1", "true", "yes")
 

@@ -20,6 +20,7 @@ from modules.cache import load_manifest, update_entry, should_regenerate
 from modules.botwa_footage import BotWAFootageGenerator
 from modules.fish_tts import FishTTSGenerator
 from modules.composer import VideoComposer
+from modules.telegram_notify import TelegramNotifier
 
 def load_config(path: str):
     p = Path(path)
@@ -43,8 +44,11 @@ def main():
     config = load_config(args.config)
     for d in [config.FOOTAGE_DIR, config.AUDIO_DIR, config.CACHE_DIR, config.SCENES_DIR, config.OUTPUT_DIR]:
         ensure_dir(d)
+    notifier = TelegramNotifier(config)
     dry_run = args.dry_run or args.check or getattr(config, "DRY_RUN", False)
     log_info(f"Starting video generation: {config.PROJECT_TITLE}")
+    if notifier.enabled:
+        notifier.send_message(f"🎬 <b>{config.PROJECT_TITLE}</b> mulai — {len(config.SCENE_PROMPTS)} scenes | dry_run={dry_run}")
     log_info(f"Config: {args.config} | dry_run={dry_run} force={args.force} skip_footage={args.skip_footage} skip_tts={args.skip_tts}")
     log_info(f"Scenes: {len(config.SCENE_PROMPTS)}")
     if not config.SCENE_PROMPTS:
@@ -210,6 +214,8 @@ def main():
             out[sid]=tts.generate_scene_audio(sc, id2text[sid])
         return out
     log_info("Generate footage + audio (concurrent)")
+    if notifier.enabled:
+        notifier.send_message(f"⏳ <b>{config.PROJECT_TITLE}</b> — generate footage + audio …")
     footage_map={}
     audio_map={}
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as ex:
@@ -242,6 +248,10 @@ def main():
             a_status="placeholder"
         f_status="done" if fp_str and Path(fp_str).exists() else "missing"
         update_entry(config.CACHE_DIR, sid, sc["prompt"], id2text[sid], fp_str, ap_str, dur, f_status, a_status)
+    if notifier.enabled:
+        ok_f = len([v for v in footage_map.values() if v and Path(v).exists()])
+        ok_a = len([v for v in audio_map.values() if isinstance(v, dict) and v.get("audio_path") and Path(v.get("audio_path")).exists()])
+        notifier.send_message(f"🎞 Footage {ok_f}/{len(config.SCENE_PROMPTS)} | Audio {ok_a}/{len(config.SCENE_PROMPTS)} — composing …")
     log_info("Composing final video")
     composer=VideoComposer(config)
     try:
@@ -250,18 +260,25 @@ def main():
             log_info(f"Output saved to {out}")
             audios=[]
             for v in audio_map.values():
-                if isinstance(v, dict) and v.get("audio_path") and Path(v["audio_path"]).exists():
+                if isinstance(v, dict) and v.get("audio_path") and Path(v.get("audio_path")).exists():
                     audios.append(Path(v["audio_path"]))
                 elif isinstance(v, (str,Path)) and Path(v).exists():
                     audios.append(Path(v))
             total=sum([get_media_duration(a) for a in audios]) if audios else sum([estimate_duration_from_text(id2text[s["id"]]) for s in config.SCENE_PROMPTS])
             trans=(len(config.SCENE_PROMPTS)-1)*config.TRANSITION_DURATION if len(config.SCENE_PROMPTS)>1 else 0
             log_info(f"Estimasi durasi: {total - trans:.1f}s")
+            if notifier.enabled:
+                notifier.send_message(f"✅ <b>{config.PROJECT_TITLE}</b> selesai — {total - trans:.1f}s — kirim video …")
+                notifier.send_video(out, caption=f"{config.PROJECT_TITLE} — {total - trans:.1f}s")
         else:
             log_error("Compose gagal, output tidak ada")
+            if notifier.enabled:
+                notifier.send_message(f"❌ <b>{config.PROJECT_TITLE}</b> gagal — output tidak ada")
             sys.exit(1)
     except Exception as e:
         log_error(f"Compose error {e}")
+        if 'notifier' in locals() and notifier.enabled:
+            notifier.send_message(f"❌ <b>{config.PROJECT_TITLE if 'config' in locals() else 'video'}</b> error: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
