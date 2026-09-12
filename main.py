@@ -21,6 +21,7 @@ from modules.botwa_footage import BotWAFootageGenerator
 from modules.fish_tts import FishTTSGenerator
 from modules.composer import VideoComposer
 from modules.telegram_notify import TelegramNotifier
+from modules.research import ResearchAgent
 
 def load_config(path: str):
     p = Path(path)
@@ -39,9 +40,38 @@ def main():
     parser.add_argument("--force", action="store_true", help="abaikan cache, regenerate semua")
     parser.add_argument("--config", default="config.py", help="path config custom")
     parser.add_argument("--check", action="store_true", help="alias dry-run + health check")
+    parser.add_argument("--research", default="", help="riset topik via Brave Search lalu auto-generate SCRIPT + footage (contoh: --research 'sejarah Facebook')")
     args = parser.parse_args()
     load_env()
     config = load_config(args.config)
+    _research_override = False
+    # --research: Brave Search -> narrative -> SCRIPT + SCENE_PROMPTS unlimited
+    if getattr(args, "research", ""):
+        ra = ResearchAgent(config)
+        r = ra.run(args.research)
+        title, script, prompts = ra.to_config(args.research, r)
+        config.PROJECT_TITLE = title
+        config.SCRIPT = script
+        config.SCENE_PROMPTS = prompts
+        _research_override = True
+        log_info(f"Research override: title={title} scenes={len(prompts)}")
+    # AUTO_FOOTAGE_PROMPTS: override SCENE_PROMPTS dari SCRIPT agar footage cocok narasi (skip jika sudah dari --research)
+    if not _research_override and getattr(config, "AUTO_FOOTAGE_PROMPTS", False):
+        import re as _re_auto
+        _texts = [p.strip() for p in _re_auto.split(r'\n+', config.SCRIPT.strip()) if p.strip()]
+        if len(_texts) == 1 and _texts and len(_texts[0]):
+            _sents = _re_auto.split(r'(?<=[.!?])\s+', _texts[0])
+            _sents = [s.strip() for s in _sents if s.strip()]
+            if len(_sents) > 1:
+                _texts = _sents
+        _auto = []
+        for i, t in enumerate(_texts):
+            _clean = t[:180].strip().rstrip('.')
+            _prompt = f"cinematic photo, {_clean}, vertical 9:16, ultra detailed, photorealistic"
+            _auto.append({"id": f"scene_{i+1:02d}", "prompt": _prompt, "type": "auto"})
+        if _auto:
+            config.SCENE_PROMPTS = _auto
+            log_info(f"AUTO_FOOTAGE_PROMPTS: {len(_auto)} prompts auto-generated from SCRIPT")
     for d in [config.FOOTAGE_DIR, config.AUDIO_DIR, config.CACHE_DIR, config.SCENES_DIR, config.OUTPUT_DIR]:
         ensure_dir(d)
     notifier = TelegramNotifier(config)

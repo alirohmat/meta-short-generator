@@ -27,6 +27,9 @@ SCENE_PROMPTS = [
     {"id": "scene_03", "prompt": "cinematic photo, old diary on wooden table, candle light, dramatic shadow, vertical 9:16", "type": "auto"},
 ]
 
+# Jika true, SCENE_PROMPTS diabaikan dan auto-generate dari SCRIPT (1 prompt per kalimat) agar footage cocok narasi
+AUTO_FOOTAGE_PROMPTS = os.getenv("AUTO_FOOTAGE_PROMPTS", "true").lower() in ("1", "true", "yes")
+
 FISH_AUDIO_API_KEY = os.getenv("FISH_AUDIO_API_KEY", "")
 FISH_AUDIO_VOICE_ID = os.getenv("FISH_AUDIO_VOICE_ID", "isi_voice_id")
 FISH_AUDIO_FORMAT = os.getenv("FISH_AUDIO_FORMAT", "mp3")
@@ -50,6 +53,14 @@ BGM_VOLUME = float(os.getenv("BGM_VOLUME", "0.15"))
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+# Research (Tavily proxy + Brave fallback)
+BRAVE_SEARCH_API_KEY = os.getenv("BRAVE_SEARCH_API_KEY", "")
+SEARCH_ENDPOINT = os.getenv("SEARCH_ENDPOINT", "http://38.45.64.53:20128/v1/search")
+SEARCH_API_KEY = os.getenv("SEARCH_API_KEY", "sk-5e56e0df71e579e4-4fyc83-d46953a7")
+SEARCH_MODEL = os.getenv("SEARCH_MODEL", "tavily")
+RESEARCH_COUNT = int(os.getenv("RESEARCH_COUNT", "8"))
+RESEARCH_LANG = os.getenv("RESEARCH_LANG", "id")
 
 OUTPUT_FILENAME = "final_output.mp4"
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() in ("1", "true", "yes")
