@@ -54,6 +54,13 @@ BGM_VOLUME = float(os.getenv("BGM_VOLUME", "0.15"))
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
+# S3 / B2 persist
+S3_ENDPOINT = os.getenv("S3_ENDPOINT", "https://s3.us-east-005.backblazeb2.com")
+S3_BUCKET = os.getenv("S3_BUCKET", "brogalan")
+S3_REGION = os.getenv("S3_REGION", "us-east-005")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+
 # Research (Tavily proxy + Brave fallback)
 BRAVE_SEARCH_API_KEY = os.getenv("BRAVE_SEARCH_API_KEY", "")
 SEARCH_ENDPOINT = os.getenv("SEARCH_ENDPOINT", "http://38.45.64.53:20128/v1/search")
