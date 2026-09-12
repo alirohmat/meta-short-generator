@@ -42,7 +42,8 @@ def _numbers_to_words_id(text):
 STOP = set("yang adalah merupakan sebagai untuk dengan secara tersebut pertama kali benar-benar tercatat inilah itulah namun dan atau dari pada ke di sebuah suatu ini itu mereka kita kamu dia kami anda sudah telah akan ada yang itu dalam tempat menjadi simbol sangatlah salah satu dipercaya oleh dibangun tepatnya".split())
 # visual concepts English only — jangan campur Indonesia
 VISUAL_CONCEPTS = [
-    ("tahukah kamu|mengubah sejarah", "first mosque in Islam dramatic opening, golden sunrise over desert"),
+    ("masjid pertama|dibangun.*nabi|dibangun.*rosul|dibangun oleh", "Quba Mosque first mosque built by Prophet, simple desert mosque historical"),
+    ("berhenti scroll|fakta yang jarang", "first mosque in Islam dramatic opening, golden sunrise over desert"),
     ("rabiul awwal|delapan rabiul|622 m|tahun hijriah|hijriyah|23 september", "foundation inscription eighth Rabiul Awwal 622, Quba Mosque first stone historical date"),
     ("hijrah|perjalanan hijrah", "hijrah caravan arriving at Quba village, travelers with camels, desert road"),
     ("masjid quba", "Quba Mosque simple stone and palm structure, desert village oasis"),
@@ -170,7 +171,7 @@ class ResearchAgent:
         return facts[:24]
     def _synthesize(self, query, facts):
         if not facts:
-            hook=_numbers_to_words_id(f"Tahukah kamu kisah di balik {query} yang jarang diceritakan?")
+            hook=_numbers_to_words_id(f"Berhenti scroll — {query} ternyata menyimpan fakta yang jarang diketahui?")
             return {"title":query.title(),"narrative":hook,"sentences":[hook],"facts":[]}
         qwords=set(query.lower().split()); scored=[]
         for f in facts:
@@ -183,9 +184,9 @@ class ResearchAgent:
             scored.append((sc,f))
         scored.sort(key=lambda x:-x[0])
         picked=[f for _,f in scored[:12]]
-        hook=_numbers_to_words_id(f"Tahukah kamu, {query} menyimpan kisah yang mengubah sejarah?")
+        hook=_numbers_to_words_id(f"Berhenti scroll — {query} ternyata menyimpan fakta yang jarang diketahui?")
         sentences=[hook]
-        connectors=["Semuanya bermula ","Saat itu, ","","Menariknya, ","","Hingga akhirnya, ","Bayangkan, ","Dan inilah pelajaran pentingnya, "]
+        connectors=["Kebanyakan orang mengira ","Saat itu, ","","Menariknya, ","","Hingga akhirnya, ","Bayangkan, ","Dan inilah pelajaran pentingnya, "]
         for idx,p in enumerate(picked[:7]):
             s=re.sub(r'^\[.*?\]\s*','',p).strip(); s=re.sub(r'\s+',' ',s).strip()
             if not s.endswith('.'): s+='.'
@@ -204,7 +205,7 @@ class ResearchAgent:
         if total>900:
             while len(" ".join(sentences))>850 and len(sentences)>7: sentences.pop()
         if len(" ".join(sentences))<750:
-            cta="Kisah ini mengingatkan kita akan makna sebenarnya dari peristiwa tersebut."
+            cta="Setuju atau tidak? Tulis di komentar kita akan makna sebenarnya dari peristiwa tersebut."
             if cta not in sentences: sentences.append(cta)
         narrative=" ".join(sentences)
         title=query.title().replace("Sejarah ","").strip()[:40] or query.title()

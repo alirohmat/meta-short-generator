@@ -87,6 +87,7 @@ class BotWAFootageGenerator:
         h = {}
         if self.token:
             h["Authorization"] = f"Bearer {self.token}"
+            h["X-API-Key"] = self.token
         return h
     def health_check(self) -> bool:
         url = f"{self.base_url}/api/state"
