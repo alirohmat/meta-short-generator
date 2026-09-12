@@ -18,6 +18,32 @@ except ImportError:
     HAS_AIO = False
 from .utils import log_info, log_error, get_media_duration, estimate_duration_from_text, ensure_dir, run_command
 
+_SATUAN = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas"]
+def _terbilang_id(n: int) -> str:
+    if n < 12:
+        return _SATUAN[n]
+    if n < 20:
+        return _terbilang_id(n - 10) + " belas" if n != 11 else "sebelas"
+    if n < 100:
+        q, r = divmod(n, 10)
+        return _SATUAN[q] + " puluh" + (" " + _terbilang_id(r) if r else "")
+    if n < 200:
+        return "seratus" + (" " + _terbilang_id(n - 100) if n > 100 else "")
+    if n < 1000:
+        q, r = divmod(n, 100)
+        return _SATUAN[q] + " ratus" + (" " + _terbilang_id(r) if r else "")
+    if n < 2000:
+        return "seribu" + (" " + _terbilang_id(n - 1000) if n > 1000 else "")
+    if n < 1000000:
+        q, r = divmod(n, 1000)
+        return _terbilang_id(q) + " ribu" + (" " + _terbilang_id(r) if r else "")
+    if n < 1000000000:
+        q, r = divmod(n, 1000000)
+        return _terbilang_id(q) + " juta" + (" " + _terbilang_id(r) if r else "")
+    return str(n)
+def _numbers_to_words_id(text: str) -> str:
+    return re.sub(r"\b\d+\b", lambda m: _terbilang_id(int(m.group(0))), text)
+
 class FishTTSGenerator:
     def __init__(self, config):
         self.config = config
@@ -111,6 +137,7 @@ class FishTTSGenerator:
         log_info(f"Silent audio {save_path.name} {duration:.1f}s")
         return save_path
     def generate_audio(self, text: str, save_path: Path) -> dict:
+        text = _numbers_to_words_id(text)
         save_path = Path(save_path)
         ensure_dir(save_path.parent)
         chunks = self.split_text(text, 550)

@@ -1,7 +1,8 @@
 """
 modules/research.py — Search -> Fakta -> Narasi TTS
-Provider: Tavily via 38.45.64.53:20128 (fallback Wikipedia API)
+Provider: Tavily via 38.45.64.53:20128 (fallback Brave)
 Flow: search(query) -> snippets -> synthesize narrative -> SCENE_PROMPTS auto unlimited
+TTS: angka ditulis kata (Indonesia) agar Fish TTS tidak baca English
 """
 import os
 import re
@@ -9,11 +10,44 @@ import requests
 from pathlib import Path
 from .utils import log_info, log_error
 
-# primary: custom tavily proxy
 SEARCH_ENDPOINT = os.getenv("SEARCH_ENDPOINT", "http://38.45.64.53:20128/v1/search")
 SEARCH_API_KEY = os.getenv("SEARCH_API_KEY", "sk-5e56e0df71e579e4-4fyc83-d46953a7")
 SEARCH_MODEL = os.getenv("SEARCH_MODEL", "tavily")
 BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
+
+# --- terbilang Indonesia untuk TTS (hindari angka dibaca English) ---
+_SATUAN = ["", "satu", "dua", "tiga", "empat", "lima", "enam", "tujuh", "delapan", "sembilan", "sepuluh", "sebelas"]
+def _terbilang_id(n: int) -> str:
+    if n < 12:
+        return _SATUAN[n]
+    if n < 20:
+        return _terbilang_id(n - 10) + " belas" if n != 11 else "sebelas"
+    if n < 100:
+        q, r = divmod(n, 10)
+        return _SATUAN[q] + " puluh" + (" " + _terbilang_id(r) if r else "")
+    if n < 200:
+        return "seratus" + (" " + _terbilang_id(n - 100) if n > 100 else "")
+    if n < 1000:
+        q, r = divmod(n, 100)
+        return _SATUAN[q] + " ratus" + (" " + _terbilang_id(r) if r else "")
+    if n < 2000:
+        return "seribu" + (" " + _terbilang_id(n - 1000) if n > 1000 else "")
+    if n < 1000000:
+        q, r = divmod(n, 1000)
+        return _terbilang_id(q) + " ribu" + (" " + _terbilang_id(r) if r else "")
+    if n < 1000000000:
+        q, r = divmod(n, 1000000)
+        return _terbilang_id(q) + " juta" + (" " + _terbilang_id(r) if r else "")
+    return str(n)
+
+def _numbers_to_words_id(text: str) -> str:
+    def repl(m):
+        try:
+            n = int(m.group(0))
+            return _terbilang_id(n)
+        except:
+            return m.group(0)
+    return re.sub(r"\b\d+\b", repl, text)
 
 class ResearchAgent:
     def __init__(self, config):
@@ -36,12 +70,7 @@ class ResearchAgent:
             j = r.json()
             results = []
             for item in j.get("results", [])[:self.count]:
-                results.append({
-                    "title": item.get("title",""),
-                    "url": item.get("url",""),
-                    "desc": item.get("snippet","") or item.get("description","") or item.get("content","") or "",
-                    "score": item.get("score",0),
-                })
+                results.append({"title": item.get("title",""), "url": item.get("url",""), "desc": item.get("snippet","") or item.get("description","") or item.get("content","") or "", "score": item.get("score",0)})
             log_info(f"Tavily search '{query}' -> {len(results)} results")
             return results
         except Exception as e:
@@ -95,7 +124,7 @@ class ResearchAgent:
 
     def _synthesize(self, query: str, facts: list[str]) -> dict:
         if not facts:
-            return {"title": query.title(), "narrative": f"Inilah kisah tentang {query}. Mari kita telusuri fakta menariknya.", "sentences": [f"Inilah kisah tentang {query}."], "facts": []}
+            return {"title": query.title(), "narrative": _numbers_to_words_id(f"Inilah kisah tentang {query}. Mari kita telusuri fakta menariknya."), "sentences": [_numbers_to_words_id(f"Inilah kisah tentang {query}.")], "facts": []}
         qwords = set(query.lower().split())
         scored = []
         for f in facts:
@@ -108,7 +137,7 @@ class ResearchAgent:
                 score += 3
             if len(f) > 80:
                 score += 1
-            if f.count(' ' ) > 8:
+            if f.count(' ') > 8:
                 score += 1
             scored.append((score, f))
         scored.sort(key=lambda x: -x[0])
@@ -118,13 +147,13 @@ class ResearchAgent:
             s = p.strip()
             if not s.endswith('.'):
                 s += '.'
-            # kapital awal
             s = s[0].upper() + s[1:] if len(s) > 1 else s
+            s = _numbers_to_words_id(s)
             sentences.append(s)
             if len(" ".join(sentences)) > 700:
                 break
         if len(sentences) < 4 and len(picked) >= 4:
-            sentences = [s if s.endswith('.') else s+'.' for s in picked[:5]]
+            sentences = [_numbers_to_words_id(s if s.endswith('.') else s+'.') for s in picked[:5]]
         narrative = " ".join(sentences)
         title = query.title().replace("Sejarah ","").strip()[:40] or query.title()
         return {"title": title, "narrative": narrative, "sentences": sentences, "facts": facts}
