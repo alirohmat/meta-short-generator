@@ -141,19 +141,26 @@ class ResearchAgent:
                 score += 1
             scored.append((score, f))
         scored.sort(key=lambda x: -x[0])
-        picked = [f for _, f in scored[:10]]
+        picked = [f for _, f in scored[:12]]
         sentences = []
-        for p in picked[:7]:
+        for p in picked[:9]:
             s = p.strip()
             if not s.endswith('.'):
                 s += '.'
             s = s[0].upper() + s[1:] if len(s) > 1 else s
             s = _numbers_to_words_id(s)
             sentences.append(s)
-            if len(" ".join(sentences)) > 700:
+            if len(" ".join(sentences)) >= 800:
                 break
-        if len(sentences) < 4 and len(picked) >= 4:
-            sentences = [_numbers_to_words_id(s if s.endswith('.') else s+'.') for s in picked[:5]]
+        # target ~55-65s = ~750-850 chars (estim 1s/13 chars) -> minimal 7 kalimat
+        if len(sentences) < 7 and len(picked) >= 7:
+            sentences = [_numbers_to_words_id(s if s.endswith('.') else s+'.') for s in picked[:7]]
+        # potong jika kepanjangan >65s (~850 chars), tambah jika kependekan <50s
+        total = len(" ".join(sentences))
+        if total > 900:
+            # buang kalimat terakhir sampai <=850
+            while len(" ".join(sentences)) > 850 and len(sentences) > 7:
+                sentences.pop()
         narrative = " ".join(sentences)
         title = query.title().replace("Sejarah ","").strip()[:40] or query.title()
         return {"title": title, "narrative": narrative, "sentences": sentences, "facts": facts}
