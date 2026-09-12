@@ -25,6 +25,7 @@ class FishTTSGenerator:
         self.voice_id = getattr(config, "FISH_AUDIO_VOICE_ID", "isi_voice_id")
         self.fmt = getattr(config, "FISH_AUDIO_FORMAT", "mp3")
         self.base_url = getattr(config, "FISH_AUDIO_BASE_URL", "https://api.fish.audio").rstrip("/")
+        self.model = getattr(config, "FISH_AUDIO_MODEL", "s2.1-pro-free")
     def split_text(self, text: str, max_chars=550) -> list[str]:
         if not text:
             return []
@@ -56,8 +57,8 @@ class FishTTSGenerator:
         if not self.api_key or self.api_key in ("", "isi_voice_id"):
             return None
         endpoints = [f"{self.base_url}/v1/tts", f"{self.base_url}/api/v1/tts"]
-        headers_base = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-        payloads = [{"text": text, "reference_id": self.voice_id, "format": self.fmt}, {"text": text, "voice_id": self.voice_id, "format": self.fmt}, {"text": text, "reference_id": self.voice_id}]
+        headers_base = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json", "model": self.model}
+        payloads = [{"text": text, "reference_id": self.voice_id, "format": self.fmt}, {"text": text, "voice_id": self.voice_id, "format": self.fmt}]
         for url in endpoints:
             for payload in payloads:
                 for attempt in range(3):

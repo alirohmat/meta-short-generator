@@ -31,6 +31,7 @@ FISH_AUDIO_API_KEY = os.getenv("FISH_AUDIO_API_KEY", "")
 FISH_AUDIO_VOICE_ID = os.getenv("FISH_AUDIO_VOICE_ID", "isi_voice_id")
 FISH_AUDIO_FORMAT = os.getenv("FISH_AUDIO_FORMAT", "mp3")
 FISH_AUDIO_BASE_URL = os.getenv("FISH_AUDIO_BASE_URL", "https://api.fish.audio")
+FISH_AUDIO_MODEL = os.getenv("FISH_AUDIO_MODEL", "s2.1-pro-free")
 
 BOT_WA_BASE_URL = os.getenv("BOT_WA_BASE_URL", "https://bot-wa.koyeb.app")
 BOT_WA_TOKEN = os.getenv("BOT_WA_TOKEN", "")
