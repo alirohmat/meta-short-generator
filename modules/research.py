@@ -36,7 +36,21 @@ def _terbilang_id(n):
         return _terbilang_id(q) + " juta" + (" " + _terbilang_id(r) if r else "")
     return str(n)
 
+_SINGKATAN = {
+    r"\bSAW\b": "Sallallahu Alaihi Wasallam",
+    r"\bS\.A\.W\b": "Sallallahu Alaihi Wasallam",
+    r"\bSWT\b": "Subhanahu Wa Taala",
+    r"\bS\.W\.T\b": "Subhanahu Wa Taala",
+    r"\bRA\b": "Radhiyallahu Anhu",
+    r"\bR\.A\b": "Radhiyallahu Anhu",
+    r"\bAS\b": "Alaihis Salam",
+}
+def _expand_singkatan(text: str) -> str:
+    for pat, repl in _SINGKATAN.items():
+        text = re.sub(pat, repl, text, flags=re.IGNORECASE)
+    return text
 def _numbers_to_words_id(text):
+    text = _expand_singkatan(text)
     return re.sub(r"\b\d+\b", lambda m: _terbilang_id(int(m.group(0))), text)
 
 STOP = set("yang adalah merupakan sebagai untuk dengan secara tersebut pertama kali benar-benar tercatat inilah itulah namun dan atau dari pada ke di sebuah suatu ini itu mereka kita kamu dia kami anda sudah telah akan ada yang itu dalam tempat menjadi simbol sangatlah salah satu dipercaya oleh dibangun tepatnya".split())
@@ -79,18 +93,22 @@ VISUAL_DICT = {"masjid":"mosque","jumat":"Friday"}  # keep compat
 VISUAL_STYLES = GENERIC_STYLES
 def _to_visual_prompt(sentence, idx, query=""):
     low=sentence.lower()
+    # selang-seling foto vs animasi (meta 5s) — idx genap foto, ganjil animasi biar footage variatif
+    is_anim = (idx % 3 == 1)  # 1 dari 3 scene jadi animasi, sisanya foto (ubah %2 jika mau 50:50)
+    prefix = "cinematic animation" if is_anim else "cinematic photo"
+    anim_suffix = ", smooth motion, 5 second clip" if is_anim else ""
     # cek konsep prioritas — match pertama menang (English only)
     for pat, concept in VISUAL_CONCEPTS:
         if re.search(pat, low):
             style=GENERIC_STYLES[idx % len(GENERIC_STYLES)]
-            return f"cinematic photo, {concept}, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
+            return f"{prefix}, {concept}, {style}{anim_suffix}, ultra detailed, photorealistic, vertical 9:16"[:180]
     # query-aware fallback: translate query jika tidak match konsep
     if query:
         q_vis=_translate_visual(query)[:60]
         style=GENERIC_STYLES[idx % len(GENERIC_STYLES)]
-        return f"cinematic photo, {q_vis}, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
+        return f"{prefix}, {q_vis}, {style}{anim_suffix}, ultra detailed, photorealistic, vertical 9:16"[:180]
     style=GENERIC_STYLES[idx % len(GENERIC_STYLES)]
-    return f"cinematic photo, historical scene, {style}, ultra detailed, photorealistic, vertical 9:16"[:180]
+    return f"{prefix}, historical scene, {style}{anim_suffix}, ultra detailed, photorealistic, vertical 9:16"[:180]
 
 class ResearchAgent:
     def __init__(self, config):

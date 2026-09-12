@@ -41,7 +41,22 @@ def _terbilang_id(n: int) -> str:
         q, r = divmod(n, 1000000)
         return _terbilang_id(q) + " juta" + (" " + _terbilang_id(r) if r else "")
     return str(n)
+_SINGKATAN = {
+    r"\bSAW\b": "Sallallahu Alaihi Wasallam",
+    r"\bS\.A\.W\b": "Sallallahu Alaihi Wasallam",
+    r"\bSWT\b": "Subhanahu Wa Taala",
+    r"\bS\.W\.T\b": "Subhanahu Wa Taala",
+    r"\bRA\b": "Radhiyallahu Anhu",
+    r"\bR\.A\b": "Radhiyallahu Anhu",
+    r"\bAS\b": "Alaihis Salam",
+    r"\bA\.S\b": "Alaihis Salam",
+}
+def _expand_singkatan(text: str) -> str:
+    for pat, repl in _SINGKATAN.items():
+        text = re.sub(pat, repl, text, flags=re.IGNORECASE)
+    return text
 def _numbers_to_words_id(text: str) -> str:
+    text = _expand_singkatan(text)
     return re.sub(r"\b\d+\b", lambda m: _terbilang_id(int(m.group(0))), text)
 
 class FishTTSGenerator:

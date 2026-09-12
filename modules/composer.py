@@ -98,18 +98,38 @@ class VideoComposer:
         lst = out.parent / "audio_list.txt"
         lst.write_text("\n".join([f"file '{p.resolve()}'" for p in valid]), encoding="utf-8")
         concat_a = out.parent / "_concat_narr.aac"
+        # concat + tail 0.8s silence biar TTS tidak kepotong di -shortest
         code,o,e = run_command(["ffmpeg","-y","-f","concat","-safe","0","-i",str(lst),"-c:a","aac","-b:a","128k"] + META_STRIP + [str(concat_a)], timeout=60)
         if code != 0:
             code,o,e = run_command(["ffmpeg","-y","-f","concat","-safe","0","-i",str(lst),"-c:a","libmp3lame","-q:a","2"] + META_STRIP + [str(concat_a)], timeout=60)
             if code != 0:
                 raise RuntimeError(e[:600])
+        # pad 0.8s silence tail
+        padded_a = out.parent / "_concat_narr_padded.aac"
+        code,o,e = run_command(["ffmpeg","-y","-i",str(concat_a),"-af","apad,atrim=start=0:duration="+str(get_media_duration(concat_a)+0.8),"-c:a","aac","-b:a","128k"] + META_STRIP + [str(padded_a)], timeout=60)
+        if code == 0 and padded_a.exists() and padded_a.stat().st_size>0:
+            concat_a = padded_a
         if self.bgm and Path(self.bgm).exists():
-            cmd = ["ffmpeg","-y","-threads","1","-i",str(video),"-i",str(concat_a),"-stream_loop","-1","-i",str(self.bgm),"-filter_complex",f"[2:a]volume={self.bgm_vol}[bgm];[1:a][bgm]amix=inputs=2:duration=shortest:dropout_transition=2[aout]","-map","0:v","-map","[aout]","-c:v","copy","-c:a","aac","-b:a","128k","-shortest"] + META_STRIP + [str(out)]
+            # bgm mix — pad video jika lebih pendek dari audio
+            vdur = get_media_duration(video)
+            adur = get_media_duration(concat_a)
+            if vdur + 0.05 < adur:
+                pad = adur - vdur + 0.5
+                cmd = ["ffmpeg","-y","-threads","1","-i",str(video),"-i",str(concat_a),"-stream_loop","-1","-i",str(self.bgm),"-filter_complex",f"[0:v]tpad=stop_mode=clone:stop_duration={pad:.2f}[vpad];[2:a]volume={self.bgm_vol}[bgm];[1:a][bgm]amix=inputs=2:duration=longest:dropout_transition=2[aout]","-map","[vpad]","-map","[aout]","-c:v","libx264","-preset","ultrafast","-crf","23","-c:a","aac","-b:a","128k","-shortest"] + META_STRIP + [str(out)]
+            else:
+                cmd = ["ffmpeg","-y","-threads","1","-i",str(video),"-i",str(concat_a),"-stream_loop","-1","-i",str(self.bgm),"-filter_complex",f"[2:a]volume={self.bgm_vol}[bgm];[1:a][bgm]amix=inputs=2:duration=shortest:dropout_transition=2[aout]","-map","0:v","-map","[aout]","-c:v","copy","-c:a","aac","-b:a","128k","-shortest"] + META_STRIP + [str(out)]
             code,o,e = run_command(cmd, timeout=120)
             if code == 0:
                 return out
             log_error(f"mix BGM gagal fallback tanpa BGM: {e[:300]}")
-        cmd = ["ffmpeg","-y","-threads","1","-i",str(video),"-i",str(concat_a),"-map","0:v","-map","1:a","-c:v","copy","-c:a","aac","-b:a","128k","-shortest"] + META_STRIP + [str(out)]
+        # tanpa BGM — pad video jika audio lebih panjang (fix TTS kepotong karena xfade 0.5*6=3s)
+        vdur = get_media_duration(video)
+        adur = get_media_duration(concat_a)
+        if vdur + 0.05 < adur:
+            pad = adur - vdur + 0.5
+            cmd = ["ffmpeg","-y","-threads","1","-i",str(video),"-i",str(concat_a),"-filter_complex",f"[0:v]tpad=stop_mode=clone:stop_duration={pad:.2f}[vpad]","-map","[vpad]","-map","1:a","-c:v","libx264","-preset","ultrafast","-crf","23","-c:a","aac","-b:a","128k","-shortest"] + META_STRIP + [str(out)]
+        else:
+            cmd = ["ffmpeg","-y","-threads","1","-i",str(video),"-i",str(concat_a),"-map","0:v","-map","1:a","-c:v","copy","-c:a","aac","-b:a","128k","-shortest"] + META_STRIP + [str(out)]
         code,o,e = run_command(cmd, timeout=90)
         if code != 0:
             raise RuntimeError(e[:600])
